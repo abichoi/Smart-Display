@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Smart Display</title>
+        <meta name="author" content="Sin Man Choi (Abi)">
+        <meta name="description" content="This is a smart display.">
+        <!-- google -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js" type="text/javascript"></script>
+        <link href="style.css" rel="stylesheet" type="text/css">
+    </head>
+<body>
+    <img src="bk.png" alt="background image" width="865" height="1500" class="bkpic">
+    <div id="Clock"></div>
+    <iframe class= "draggable" src="GOOGLE_CALENDAR_IFRAME_LINK"  width="400" height="400" frameborder="0" scrolling="no"></iframe>
+
+
+    <div class = "draggable" id="box">
+        <div class="bar">
+            Status
+        </div>
+        <div class="topic">Weather Forecast</div>
+        <div class="line"></div>
+        <div class="row">
+            <div class="col-25"><label for="maxtemp"> Max: </label></div>
+            <div class="col-75"><div class="words" id="maxtemp"></div></div>
+        </div><br>
+        <div class="row">
+            <div class="col-25"><label for="maxtemp"> Min: </label></div>
+            <div class="col-75"><div class="words" id="mintemp"></div></div>
+        </div><br>
+        <div class="row">
+            <div class="col-25"><label for="nowtemp"> Current Temp: </label></div>
+            <div class="col-75"><div class="words" id="nowtemp"></div></div>
+        </div><br>
+        <div class="row">
+            <div class="col-25"><label for="feeltemp"> Feel Temp: </label></div>
+            <div class="col-75"><div class="words" id="feeltemp"></div></div>
+        </div><br>
+        <div class="row">
+            <div class="col-25"><label for="condition"> Condition: </label></div>
+            <div class="col-75"><div class="words" id="condition"></div>
+            </div>
+        </div><br>
+        <div class="row">
+            <div class="col-25"><label for="humidity"> Humidity: </label></div>
+            <div class="col-75"><div class="words" id="humidity"></div></div>
+        </div><br>
+        <div class="line"></div>
+        <div id="future"></div><br>
+        <div class="line"></div>
+        <div class="error"> NO ERRORS</div>
+    </div>
+
+    <div id="missionbox">
+        <div class="bar">
+            MISSION
+        </div>
+        <input type="text" id="missioninput" placeholder="new mission..."><button class="button" type="submit" id="submitmission"onclick="newmission()">Submit</button>
+        <ul id="missionlist">
+            <li>  DEADLINE: CE blog post 18/11 <button class="delete""></button></li>
+            <li>  DEADLINE: Web Project 18/11 Report + Code <button class="delete""></button></li>
+            <li>  Revise <button class="delete"></button></li>
+            <li>  Buy grocery <button class="delete"></button></li>
+            <li>  Collect package <button class="delete"></button></li>
+        </ul>
+    </div>
+
+    <div class = "draggable" id="targetbox" >
+        <div class="bar">
+            Target -- Syngonium Podophyllum
+        </div>
+        <div class="topic">Current Status</div>
+        <div class="line"></div>
+        <div class="row">
+            <div class="col-25">
+                <label for="planttemp"> Surrounding Temp: </label>
+            </div>
+            <div class="col-75">
+                <div class="words" id="planttemp"></div>
+            </div>
+        </div><br>
+        <div class="row">
+            <div class="col-25">
+                <label for="planthumi"> Surrounding Humidity: </label>
+            </div>
+            <div class="col-75">
+                <div class="words" id="planthumi"></div>
+            </div>
+        </div><br>
+        <div class="row">
+            <div class="col-25">
+                <label for="plantmois"> Soil Moisture: </label>
+            </div>
+            <div class="col-75">
+                <div class="words" id="plantmois"></div>
+            </div>
+        </div><br>
+        <div class = "statustext" id = "tempstatus"></div>
+        <div class = "statustext" id = "humistatus"></div>
+        <div class = "statustext" id = "moisstatus"></div>
+        <div class="line"></div>
+        <div class = "error" id = "connectionstatus"></div>  
+    </div>
+</body>
+
+<script>
+var WeatherAPIkey = "KEY";
+var currentweather;
+var weekweather;
+var idarr = [];
+var myDate =[];
+var dayofweek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+var month = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+//toggle the checked stae of the to do list
+var list = document.querySelector('ul');
+list.addEventListener('click', function(event) {
+  if (event.target.tagName === 'LI') {
+    event.target.classList.toggle('checked');
+  }
+}, false);
+
+//get all the dates for the next 7 days
+function getweekdate(){
+    for (let i = 0; i < 8; i++){
+        myDate.push(new Date(new Date().getTime()+(i*24*60*60*1000)));
+        // console.log(myDate);
+    };
+}
+
+//get the time and date for the clock at the left corner
+function getclock(){
+    document.getElementById("Clock").innerHTML = `
+    <div class="clocktime">
+        ${new Date().getHours()}:${new Date().getMinutes()}
+    </div>
+    <div class="clock">
+        ${dayofweek[new Date().getDay()]} ${new Date().getDate()}  ${month[new Date().getMonth()]}
+    </div>
+    `
+}
+
+
+window.onload = function getWeather() {
+    getweekdate();
+    getclock();
+
+    var currentapiurl = "http://api.openweathermap.org/data/2.5/weather?q=london,uk&units=metric&appid=" +WeatherAPIkey;
+    $.getJSON(currentapiurl, function (json) {
+        currentweather = json;
+    console.log(json);
+    // document.getElementById("weatherdes").innerHTML = json.weather[0].description;
+    document.getElementById("maxtemp").innerHTML = json.main.temp_max + "° C";
+    document.getElementById("mintemp").innerHTML = json.main.temp_min + "° C";
+    document.getElementById("nowtemp").innerHTML = json.main.temp + "° C";
+    document.getElementById("feeltemp").innerHTML = json.main.feels_like + "° C";
+    document.getElementById("condition").innerHTML = json.weather[0].description;
+    document.getElementById("humidity").innerHTML = json.main.humidity + " %";
+});
+    var weekapiurl = "https://api.openweathermap.org/data/2.5/onecall?lat=51.509865&lon=-0.118092&exclude=current,minutely,hourly,alert&units=metric&appid=" +WeatherAPIkey;
+    $.getJSON(weekapiurl, function (jsonweek) {
+        weekweather = jsonweek;
+    console.log(jsonweek);
+    for (let i = 0; i < 8; i++){
+        // print out the weather forcast of the next 7 days
+        document.getElementById("future").innerHTML +=
+    `       
+            <div class='topic'> ${myDate[i].getDate()}/${myDate[i].getMonth()+1}/${myDate[i].getFullYear()}</div>
+            <div class='row'> 
+                <div class="col-25">Max:</div>
+                <div class="col-75">${jsonweek.daily[i].temp.max}</div>
+            </div><br>
+            <div class='row'>
+                <div class="col-25">Min:</div>
+                <div class="col-75">${jsonweek.daily[i].temp.min}</div>
+            </div><br>
+            <div class='row'>
+                <div class="col-25">Condition:</div>
+                <div class="col-75">${jsonweek.daily[i].weather[0].description}</div>
+            </div><br>
+            <div class='row'>
+                <div class="col-25">Humidity:</div>
+                <div class="col-75">${jsonweek.daily[i].humidity}</div>
+            </div><br>
+            <div class="line"></div>
+            `
+}
+});
+
+}
+
+
+//add a new item to the to do list
+function newmission() {
+  var li = document.createElement("li");
+  var delbutton = document.createElement("button");
+  delbutton.className="delete";
+  var input = document.getElementById("missioninput").value;
+  var inputtext = document.createTextNode(input);
+  li.appendChild(inputtext);
+  li.appendChild(delbutton);
+  if (document.getElementById("missioninput").value === '') {
+    alert("Empty input is not accepted.");
+  } else {
+    document.getElementById("missionlist").appendChild(li);
+  }
+  document.getElementById("missioninput").value = "";
+}
+
+//delete the to do list item
+$('#missionlist').on('click', '.delete', function() {
+    $(this).parent().remove();
+});
+
+//refresh the clock every minute
+setInterval(getclock, 1000);
+
+
+//mqtt parameter
+var host = "MQTT_HOST_NAME" ;
+var port = "PORT_NUMBER";
+var clientID = "RANDOM_ID";
+// Initialize connection
+var clientno = new Paho.MQTT.Client(host, Number(port), clientID);
+//topics
+var temptopic = "TOPIC/temperature";
+var humiditytopic = "TOPIC/humidity";
+var moisturetopic = "TOPIC/moisture";
+
+//Callback handlers
+clientno.onConnectionLost = LoseConnection;
+clientno.onMessageArrived = ReceiveMsg;
+
+//when connected, call connect()
+clientno.connect({ 
+    onSuccess: connect
+});
+
+//connected
+function connect() {
+    //set topic
+    topic = '#';
+    // Subscribe to the requested topic
+    clientno.subscribe(topic);
+    document.getElementById("connectionstatus").innerHTML = 'Connected';
+}
+
+//lost connection
+function LoseConnection(responseObject) {
+    if (responseObject.errorCode !== 0) {    
+        document.getElementById("connectionstatus").innerHTML = 'ERROR: ' + responseObject.errorMessage;
+    } else{
+        document.getElementById("connectionstatus").innerHTML = "ERROR: Connection lost";
+    }
+}
+
+// msg arrived => print out the data
+function ReceiveMsg(message) {
+    if(message.destinationName==temptopic){
+        temp = message.payloadString;
+        document.getElementById("planttemp").innerHTML = message.payloadString + "° C";
+        if (temp > 24){
+            document.getElementById("tempstatus").innerHTML = "The environment too HOT.";
+            document.getElementById("tempstatus").className = "warning";
+        } else if (temp < 16){
+            document.getElementById("tempstatus").innerHTML = "The environment is too COLD.";
+            document.getElementById("tempstatus").className = "warning";
+        } else {
+            document.getElementById("tempstatus").innerHTML = "The environment is just right.";
+        }
+    }
+
+    if(message.destinationName == humiditytopic){
+        humi = message.payloadString;
+        document.getElementById("planthumi").innerHTML = message.payloadString + " %";
+        if (humi > 90){
+            document.getElementById("humistatus").innerHTML = "The environment is too MOIST.";
+            document.getElementById("humistatus").className = "warning";
+        } else if (humi < 60){
+            document.getElementById("humistatus").innerHTML = "The environment too DRY.";
+            document.getElementById("humistatus").className = "warning";
+        } else {
+            document.getElementById("humistatus").innerHTML = "The environment is just right.";
+        }
+    }
+
+    if(message.destinationName==moisturetopic ){
+        moist = message.payloadString;
+        document.getElementById("plantmois").innerHTML = message.payloadString + " %";
+        if (moist > 100){
+            document.getElementById("moisstatus").innerHTML = "The soil is too MOIST.";
+            document.getElementById("moisstatus").className = "warning";
+        } else if (moist < 60){
+            document.getElementById("moisstatus").innerHTML = "The soil is too DRY.";
+            document.getElementById("moisstatus").className = "warning";
+        } else {
+            document.getElementById("moisstatus").innerHTML = "The soil is just right.";
+        }
+    }
+}
+
+//get the object
+var box = document.getElementsByClassName("draggable");
+
+//for all the draggable boxes
+for(var i = 0; i < box.length; i++){
+    drag(box[i]);
+}
+
+
+function drag(obj) {
+    var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    obj.onmousedown = StartDrag;
+    //when clicked get position of the mouse
+    function StartDrag(e) {
+        e = e || window.event;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = EndDrag;
+        document.onmousemove = Dragbox;
+        return false;
+    }
+    //when clicked and move, get position of the mouse and move the box
+    function Dragbox(e) {
+        e = e || window.event;
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        obj.style.top = (obj.offsetTop - pos2) + "px";
+        obj.style.left = (obj.offsetLeft - pos1) + "px";
+    }
+    //when the mouse click is up, end drag
+    function EndDrag() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+
+</script>
+</html>
